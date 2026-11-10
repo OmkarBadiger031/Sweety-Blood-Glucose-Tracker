@@ -36,15 +36,18 @@ function DatePicker({ value, onChange, maxDate }) {
     const nextMonth = () => {
         const next = new Date(year, month + 1, 1);
 
-        if (next <= new Date(
-            maximumDate.getFullYear(),
-            maximumDate.getMonth(),
-            1
-        )) {
+        if (
+            next <= new Date(
+                maximumDate.getFullYear(),
+                maximumDate.getMonth(),
+                1
+            )
+        ) {
             setViewDate(next);
         }
     };
 
+    // Select date
     const selectDate = (day) => {
         const selected = new Date(year, month, day);
 
@@ -56,12 +59,8 @@ function DatePicker({ value, onChange, maxDate }) {
             String(selected.getDate()).padStart(2, "0")
         ].join("-");
 
-        onChange({
-            target: {
-                name: "reading_date",
-                value: formattedDate
-            }
-        });
+        // FIX: Send date string directly to Dashboard
+        onChange(formattedDate);
 
         setIsOpen(false);
     };
@@ -139,6 +138,7 @@ function DatePicker({ value, onChange, maxDate }) {
                         ).map(day => {
 
                             const currentDate = new Date(year, month, day);
+
                             const isFuture = currentDate > maximumDate;
 
                             const isSelected =
