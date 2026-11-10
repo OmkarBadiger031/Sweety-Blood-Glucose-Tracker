@@ -10,6 +10,14 @@ function App() {
         Boolean(localStorage.getItem("token"))
     );
 
+    const [loggedInUser, setLoggedInUser] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem("user") || "null");
+        } catch {
+            return null;
+        }
+    });
+
     const [formData, setFormData] = useState({
         name: "",
         email: "",
@@ -59,7 +67,6 @@ function App() {
 
         try {
             if (isLogin) {
-
                 const response = await API.post("/auth/login", {
                     email: formData.email.trim(),
                     password: formData.password
@@ -71,11 +78,19 @@ function App() {
 
                 localStorage.setItem("token", response.data.token);
 
+                if (response.data.user) {
+                    localStorage.setItem(
+                        "user",
+                        JSON.stringify(response.data.user)
+                    );
+
+                    setLoggedInUser(response.data.user);
+                }
+
                 resetForm();
                 setIsAuthenticated(true);
 
             } else {
-
                 await API.post("/auth/register", {
                     name: formData.name.trim(),
                     email: formData.email.trim(),
@@ -90,7 +105,6 @@ function App() {
             }
 
         } catch (error) {
-
             setMessage(
                 error.response?.data?.message ||
                 error.message ||
@@ -104,18 +118,29 @@ function App() {
         }
     };
 
-    // Logout and return to login
+    // Logout and clear previous user details
     const handleLogout = () => {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
+
+        setLoggedInUser(null);
         setIsAuthenticated(false);
         setIsLogin(true);
+
         resetForm();
+
         setMessage("");
+        setMessageType("");
     };
 
     // Show dashboard when authenticated
     if (isAuthenticated) {
-        return <Dashboard onLogout={handleLogout} />;
+        return (
+            <Dashboard
+                onLogout={handleLogout}
+                user={loggedInUser}
+            />
+        );
     }
 
     return (
@@ -133,8 +158,11 @@ function App() {
                     {isLogin ? "Welcome Back!" : "Create Account"}
                 </h2>
 
-                <form onSubmit={handleSubmit} autoComplete="off">
-
+                <form
+                    key={isLogin ? "login" : "register"}
+                    onSubmit={handleSubmit}
+                    autoComplete="off"
+                >
                     {!isLogin && (
                         <input
                             type="text"
