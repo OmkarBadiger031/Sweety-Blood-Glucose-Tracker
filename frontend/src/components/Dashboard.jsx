@@ -3,6 +3,7 @@ import API from "../api";
 import Reports from "./Reports";
 import DatePicker from "./DatePicker";
 
+// Get today's date
 function getTodayDate() {
     const today = new Date();
 
@@ -13,7 +14,8 @@ function getTodayDate() {
     return `${year}-${month}-${day}`;
 }
 
-function Dashboard() {
+function Dashboard({ onLogout, user }) {
+
     const [formData, setFormData] = useState({
         reading_date: getTodayDate(),
         time_slot: "Morning fasting",
@@ -26,7 +28,7 @@ function Dashboard() {
     const [editingId, setEditingId] = useState(null);
     const [reportsRefreshKey, setReportsRefreshKey] = useState(0);
 
-    // Automatically clear messages after 5 seconds
+    // Clear messages after 5 seconds
     useEffect(() => {
         if (!message && !error) return;
 
@@ -38,7 +40,7 @@ function Dashboard() {
         return () => clearTimeout(timer);
     }, [message, error]);
 
-    // Fetch reading history
+    // Fetch readings
     const fetchReadings = async () => {
         try {
             const response = await API.get("/readings");
@@ -51,12 +53,11 @@ function Dashboard() {
         }
     };
 
-    // Load readings when dashboard opens
     useEffect(() => {
         fetchReadings();
     }, []);
 
-    // Handle form inputs
+    // Handle input changes
     const handleChange = (e) => {
         setFormData((prev) => ({
             ...prev,
@@ -81,7 +82,6 @@ function Dashboard() {
             if (editingId) {
                 await API.put(`/readings/${editingId}`, payload);
                 setMessage("Reading updated successfully!");
-                setEditingId(null);
             } else {
                 await API.post("/readings", payload);
                 setMessage("Reading added successfully!");
@@ -93,6 +93,8 @@ function Dashboard() {
                 value: ""
             });
 
+            setEditingId(null);
+
             await fetchReadings();
 
             setReportsRefreshKey((prev) => prev + 1);
@@ -100,7 +102,7 @@ function Dashboard() {
         } catch (err) {
             setError(
                 err.response?.data?.message ||
-                "Something went wrong. Please try again."
+                "Unable to save reading. Please check your input."
             );
         }
     };
@@ -146,9 +148,6 @@ function Dashboard() {
 
         if (!confirmed) return;
 
-        setMessage("");
-        setError("");
-
         try {
             await API.delete(`/readings/${id}`);
 
@@ -172,8 +171,13 @@ function Dashboard() {
 
     // Logout
     const handleLogout = () => {
-        localStorage.removeItem("token");
-        window.location.href = "/login";
+        if (onLogout) {
+            onLogout();
+        } else {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.reload();
+        }
     };
 
     return (
@@ -181,30 +185,47 @@ function Dashboard() {
 
             {/* Dashboard Header */}
             <header className="dashboard-header">
+
                 <div>
                     <h1>Sweety</h1>
                     <p>Blood Glucose Tracker</p>
                 </div>
 
                 <button
-                    type="button"
                     className="logout-button"
                     onClick={handleLogout}
+                    type="button"
                 >
                     Logout
                 </button>
+
             </header>
 
-            <main className="dashboard-content">
+            <div className="dashboard-content">
 
                 {/* Welcome Section */}
                 <section className="welcome-section">
-                    <h2>Welcome to Your Dashboard</h2>
+
+                    <h2>Welcome, {user?.name || "User"}! 👋</h2>
+
                     <p>
-                        Track your glucose readings and monitor
-                        your daily progress.
+                        Track your daily blood glucose readings.
                     </p>
+
                 </section>
+
+                {/* Messages */}
+                {message && (
+                    <div className="message success">
+                        {message}
+                    </div>
+                )}
+
+                {error && (
+                    <div className="message error">
+                        {error}
+                    </div>
+                )}
 
                 {/* Add Reading Form */}
                 <section className="reading-form-card">
@@ -218,29 +239,34 @@ function Dashboard() {
                     <form onSubmit={handleSubmit}>
 
                         <div className="form-group">
+
                             <label>Reading Date</label>
 
                             <DatePicker
                                 value={formData.reading_date}
                                 maxDate={getTodayDate()}
-                                onChange={handleChange}
+                                onChange={(value) =>
+                                    setFormData((prev) => ({
+                                        ...prev,
+                                        reading_date: value
+                                    }))
+                                }
                             />
+
                         </div>
 
                         <div className="form-group">
-                            <label htmlFor="time_slot">
-                                Time Slot
-                            </label>
+
+                            <label>Time Slot</label>
 
                             <select
-                                id="time_slot"
                                 name="time_slot"
                                 value={formData.time_slot}
                                 onChange={handleChange}
                                 required
                             >
                                 <option value="Morning fasting">
-                                    Morning fasting
+                                    Morning (fasting)
                                 </option>
 
                                 <option value="After breakfast">
@@ -254,38 +280,28 @@ function Dashboard() {
                                 <option value="After dinner">
                                     After dinner
                                 </option>
+
                             </select>
+
                         </div>
 
                         <div className="form-group">
-                            <label htmlFor="value">
-                                Glucose Level (mg/dL)
-                            </label>
+
+                            <label>Glucose Value (mg/dl)</label>
 
                             <input
                                 type="number"
-                                id="value"
                                 name="value"
                                 value={formData.value}
                                 onChange={handleChange}
-                                placeholder="Enter glucose level"
+                                placeholder="Enter glucose value"
                                 min="40"
                                 max="600"
+                                step="1"
                                 required
                             />
+
                         </div>
-
-                        {message && (
-                            <p className="message success">
-                                {message}
-                            </p>
-                        )}
-
-                        {error && (
-                            <p className="message error">
-                                {error}
-                            </p>
-                        )}
 
                         <div className="form-buttons">
 
@@ -298,7 +314,6 @@ function Dashboard() {
                             {editingId && (
                                 <button
                                     type="button"
-                                    className="cancel-button"
                                     onClick={handleCancelEdit}
                                 >
                                     Cancel
@@ -308,6 +323,7 @@ function Dashboard() {
                         </div>
 
                     </form>
+
                 </section>
 
                 {/* Reading History */}
@@ -316,32 +332,32 @@ function Dashboard() {
                     <h2>Reading History</h2>
 
                     {readings.length === 0 ? (
-                        <p className="empty-message">
-                            No readings available. Add your first reading!
-                        </p>
+
+                        <p>No readings found for this date.</p>
+
                     ) : (
 
                         <div className="table-container">
 
                             <table>
+
                                 <thead>
                                     <tr>
                                         <th>Date</th>
                                         <th>Time Slot</th>
-                                        <th>Glucose Level</th>
+                                        <th>Glucose Level (mg/dl)</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
 
                                 <tbody>
+
                                     {readings.map((reading) => (
 
                                         <tr key={reading.id}>
 
                                             <td>
-                                                {String(
-                                                    reading.reading_date
-                                                ).slice(0, 10)}
+                                                {String(reading.reading_date).slice(0, 10)}
                                             </td>
 
                                             <td>
@@ -349,52 +365,55 @@ function Dashboard() {
                                             </td>
 
                                             <td>
-                                                {reading.value} mg/dL
+                                                {reading.value}
                                             </td>
 
                                             <td>
+
                                                 <div className="action-buttons">
 
                                                     <button
                                                         type="button"
-                                                        className="edit-button"
-                                                        onClick={() =>
-                                                            handleEdit(reading)
-                                                        }
+                                                        onClick={() => handleEdit(reading)}
                                                     >
                                                         Edit
                                                     </button>
 
                                                     <button
                                                         type="button"
-                                                        className="delete-button"
-                                                        onClick={() =>
-                                                            handleDelete(reading.id)
-                                                        }
+                                                        onClick={() => handleDelete(reading.id)}
                                                     >
                                                         Delete
                                                     </button>
 
                                                 </div>
+
                                             </td>
 
                                         </tr>
 
                                     ))}
+
                                 </tbody>
+
                             </table>
 
                         </div>
+
                     )}
 
                 </section>
 
                 {/* Reports */}
-                <Reports
-                    refreshTrigger={reportsRefreshKey}
-                />
+                <section className="history-card">
 
-            </main>
+                    <h2>Glucose Reports</h2>
+
+                    <Reports refreshTrigger={reportsRefreshKey} />
+
+                </section>
+
+            </div>
 
         </div>
     );

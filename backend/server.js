@@ -1,4 +1,3 @@
-
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -10,23 +9,30 @@ const authRoutes = require("./routes/auth");
 const readingsRoutes = require("./routes/readings");
 const reportsRoutes = require("./routes/reports");
 
+// Middleware
 app.use(express.json());
 
+// CORS Configuration
 app.use(
     cors({
         origin: [
+            "http://localhost:5173",
             "http://localhost:5180",
             "http://localhost:5175",
             "http://localhost:5176",
             "http://localhost:5185"
-        ]
+        ],
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"]
     })
 );
 
+// Home Route
 app.get("/", (req, res) => {
     res.send("Sweety Blood Glucose Tracker API is running!");
 });
 
+// Database Test Route
 app.get("/api/db-test", async (req, res) => {
     try {
         const result = await pool.query(
@@ -46,6 +52,7 @@ app.get("/api/db-test", async (req, res) => {
     }
 });
 
+// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/readings", readingsRoutes);
 app.use("/api/reports", reportsRoutes);
